@@ -8,7 +8,7 @@
 #define BUFFERSIZE 2048
 
 // undef the following for unicast reception
-#define MCAST_ADDRESS "239.1.1.22"
+//#undef MCAST_ADDRESS "239.1.1.22"
 
 using boost::asio::ip::udp;
 
@@ -45,6 +45,10 @@ int main(){
         unsigned ms = {};
         unsigned samples = {};
 
+        bool null_flag = false;
+        if (*buf & 0x4) {
+          null_flag = true;
+        }
         ms  = (*buf++ & 0x3) << 8;
         ms |= (*buf++);
 
@@ -57,18 +61,22 @@ int main(){
         s |= *buf++;
 
 #ifdef VERBOSE
+        if (null_flag) {
+          std::cout << "Received a NULL packet for s " << s << ", ms " << ms << 
+            ", sample offset " << samples << " from sender " << senderEndpoint.address().to_string() << "\n";
+        }
         if (ms%1000 == 0 && samples == 0) {
-         uint64_t now = (duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())).count();
-         uint64_t const DIFF_UTC_1970_1980 = 315'964'800U;
-         now = (now - (DIFF_UTC_1970_1980*1000)) + 18000;
+           uint64_t now = (duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())).count();
+           uint64_t const DIFF_UTC_1970_1980 = 315'964'800U;
+           now = (now - (DIFF_UTC_1970_1980*1000)) + 18000;
 
-         int64_t delta = (int64_t)(((int64_t)s*1000L) + ms) - (int64_t)now;
+           int64_t delta = (int64_t)(((int64_t)s*1000L) + ms) - (int64_t)now;
 
-        std::cout << now << ": received " << bytesRead << " bytes for s " << s << ", ms " << ms << 
-          ", sample offset " << samples << " from sender " << senderEndpoint.address().to_string() <<
-          ", " << delta << " ms delta, packet rate: " << nr_packets << "/ms\n";
+          std::cout << now << ": received " << bytesRead << " bytes for s " << s << ", ms " << ms << 
+            ", sample offset " << samples << " from sender " << senderEndpoint.address().to_string() <<
+            ", " << delta << " ms delta, packet rate: " << nr_packets << "/ms\n";
 
-        nr_packets = 0;
+          nr_packets = 0;
         }
 #endif
 
